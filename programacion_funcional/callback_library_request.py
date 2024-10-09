@@ -1,6 +1,7 @@
 from requests import get
 
 def get_movie_data(title, apikey, on_success, on_error):
+
     
     url = f"http://www.omdbapi.com/?t={title}&apikey={apikey}"
     response = get(url)
