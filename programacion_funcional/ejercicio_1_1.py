@@ -24,7 +24,7 @@ def get_poster(data):
     url = y["Poster"]
     response = get(url)
     if response.status_code == 200:
-        with open("programacion_funcional/poster.jpg", "wb") as file:
+        with open("programacion_funcional/poster.jpg", "wb") as file    :
             file.write(response.content)
     else:
         print_error()
