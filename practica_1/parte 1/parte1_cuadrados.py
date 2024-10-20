@@ -6,6 +6,12 @@ def cuadrados_sumados(n):
     list = reduce(lambda x, y: x + y, lista)
     return list
 
-# Ejemplo
-n = 5
-print(cuadrados_sumados(n)) # 55
+# Ejemplos para probar la función
+print(cuadrados_sumados(1))  # 1^2 = 1
+print(cuadrados_sumados(2))  # 1^2 + 2^2 = 1 + 4 = 5
+print(cuadrados_sumados(3))  # 1^2 + 2^2 + 3^2 = 1 + 4 + 9 = 14
+print(cuadrados_sumados(4))  # 1^2 + 2^2 + 3^2 + 4^2 = 1 + 4 + 9 + 16 = 30
+print(cuadrados_sumados(5))  # 1^2 + 2^2 + 3^2 + 4^2 + 5^2 = 1 + 4 + 9 + 16 + 25 = 55
+print(cuadrados_sumados(6))  # 1^2 + 2^2 + 3^2 + 4^2 + 5^2 + 6^2 = 1 + 4 + 9 + 16 + 25 + 36 = 91
+print(cuadrados_sumados(7))  # 1^2 + 2^2 + 3^2 + 4^2 + 5^2 + 6^2 + 7^2 = 1 + 4 + 9 + 16 + 25 + 36 + 49 = 140
+

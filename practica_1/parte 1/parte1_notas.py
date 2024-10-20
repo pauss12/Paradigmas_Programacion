@@ -1,3 +1,5 @@
+import json
+
 #Tenemos una lista de estudiantes, donde cada estudiante tiene su nombre y una lista de calificaciones. Queremos filtrar a los estudiantes que tienen
 #un promedio de calificaciones mayor o igual a 6 (nota mínima para aprobar). Como ejemplo podemos utilizar la siguiente lista: 
 estudiantes = [
@@ -5,7 +7,10 @@ estudiantes = [
     {"nombre": "Ana", "calificaciones": [9, 6, 8]},
     {"nombre": "Pedro", "calificaciones": [4, 5, 3]},
     {"nombre": "Maria", "calificaciones": [10, 9, 9]},
-    {"nombre": "Luis", "calificaciones": [3, 2, 5]}
+    {"nombre": "Luis", "calificaciones": [3, 2, 5]},
+    {"nombre": "Sara", "calificaciones": [6, 6, 6]},
+    {"nombre": "Pablo", "calificaciones": [7, 8, 9]},
+    {"nombre": "Carmen", "calificaciones": [5, 0, 1]}              
 ] 
 
 def promedio(calificaciones):
@@ -21,7 +26,8 @@ def get_aprobados(lista_promedios):
 def main():
     lista_promedios = promedio(estudiantes)
     aprobados = get_aprobados(lista_promedios)
-    print(aprobados)
+    json_aprobados = json.dumps(aprobados, indent=4)
+    print(json_aprobados)
 
 main()
 

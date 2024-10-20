@@ -16,5 +16,5 @@ def palindromos(lista_strings):
     return lista_bools
 
 # Ejemplo
-lista_strings = ['oso', 'reconocer', 'hola', 'ana', 'Oso']
+lista_strings = ['oso', 'reconocer', 'hola', 'ana', 'Oso', 'ososoto', 'Paula', 'osooso']
 print(palindromos(lista_strings)) 
