@@ -60,18 +60,34 @@ def make_get_request(url, onsuccess, onerror, hash):
         onerror()
     return 
 
+#FUNCION QUE GENERA EL HASH DE LA CONTRASEÑA EN SHA1 ----------------------------------------------------------------------------------------
+def sha1_hash(password):
+    pass_encode = password.encode('utf-8')
+    hash_no_digest = hashlib.sha1(pass_encode)
+    hash = hash_no_digest.hexdigest()
+    return hash
+
+#FUNCION QUE GENERA EL HASH DE LA CONTRASEÑA EN NTLM ----------------------------------------------------------------------------------------
+def ntlm_hash(password):
+    pass_encode = password.encode('utf-16le')
+    hash_no_digest = MD4.new(pass_encode)
+    hash = hash_no_digest.hexdigest()
+    return hash
+
+#FUNCION QUE GENERA EL HASH DE LA CONTRASEÑA --------------------------------------------------------------------------------------------
+def generate_hash(hash_func, password):
+    hash = hash_func(password)
+    return hash
 
 #FUNCION QUE COMPRUEBA SI LA CONTRASEÑA HA SIDO COMPROMETIDA O SI EL DOMINIO HA SIDO COMPROMETIDO ---------------------------------------------------
 def check_if_pwned(password, tipo_hash, domain):
     if (tipo_hash == "" and tipo_hash == ""):
         make_get_request(create_url("", "", domain), print_domain, lambda: print("\033[91mError al hacer la petición\033[0m\n"), hash="")
     elif tipo_hash == "SHA1":
-        #Hashear la contraseña en SHA1
-        hash = hashlib.sha1(password.encode()).hexdigest()
+        hash = generate_hash(sha1_hash, password)
         make_get_request(create_url(hash, tipo_hash, domain=""), print_line, lambda: print("\033[91mError al hacer la petición\033[0m\n"), hash)
     elif tipo_hash == "NTLM":
-        #Hashear la contraseña en NTLM
-        hash = MD4.new(password.encode('utf-16le')).hexdigest()
+        hash = generate_hash(ntlm_hash, password)
         make_get_request(create_url(hash, tipo_hash, domain=""), print_line, lambda: print("\033[91mError al hacer la petición\033[0m\n"), hash)
    
 
