@@ -16,5 +16,9 @@ def palindromos(lista_strings):
     return lista_bools
 
 # Ejemplo
-lista_strings = ['oso', 'reconocer', 'hola', 'ana', 'Oso', 'ososoto', 'Paula', 'osooso']
-print(palindromos(lista_strings)) 
+print(palindromos(['oso', 'hola', 'ana', 'ososoto', 'Paula', 'osooso'])) 
+print(palindromos(['radar', 'casa', 'anilina', 'elefante', 'arenera', 'sol']))
+print(palindromos(['reconocer', 'perro', 'luz', 'sometemos', 'cielo', 'salas']))
+print(palindromos(['ojo', 'luzazul', 'madam', 'robot', 'rever', 'manzana']))
+print(palindromos(['oro', 'palabra', 'kayak', 'correr', 'ana', 'oso']))
+print(palindromos(['level', 'amiga', 'rotor', 'avion', 'seis', 'seres']))
