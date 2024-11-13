@@ -35,7 +35,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV="D:\UTAD\paradigmas_programacion\clase0"
+VIRTUAL_ENV="D:\UTAD\cuarto\paradigmas_programacion\clase0"
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"
