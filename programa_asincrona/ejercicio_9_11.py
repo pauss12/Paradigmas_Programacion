@@ -5,9 +5,10 @@
 # Cada vez que se reciba uno, lo emitiremos a los obsevers, que se encargarán de
 # actualizar la interfaz gráfica y de imprimir el mensaje por terminal
 
-from tkinter import Tk, Label, Button, Text, END
+from tkinter import Tk, Button, Text, Entry, END
 from kafka import KafkaConsumer
 import threading
+from rx import create
 
 class KafkaListener:
     def _init_(self, topic):
