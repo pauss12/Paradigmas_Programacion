@@ -4,7 +4,6 @@ from rx import operators as ops
 from rx.scheduler import ThreadPoolScheduler
 from tkinter import Tk, Label, Entry, Button, Text, END
 import threading
-import
 
 class KafkaUI:
 
