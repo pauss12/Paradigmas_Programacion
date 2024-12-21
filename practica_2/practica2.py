@@ -4,7 +4,7 @@ from rx.core import Observer
 from rx.subject import Subject
 from tkinter import Tk, Label, Button, Entry, Listbox
 from tkinter.ttk import Progressbar
-from PIL import Image, ImageTk, UnidentifiedImageError
+from Pillow import Image, ImageTk, UnidentifiedImageError
 import asyncio
 import time
 import aiohttp
@@ -49,11 +49,14 @@ class App:
         self.Button.grid(column=1, row=1, pady=10, padx=(10, 20), sticky='w')
 
         self.options = Listbox(width=30, height=20, background='light grey', fg='black')
-        self.options.grid(column=0, row=2, columnspan=1, pady=10, padx=20, sticky='w')
+        self.options.grid(column=0, row=2, columnspan=1, pady=10, padx=20, sticky='ns')
         self.options.bind('<<ListboxSelect>>', self.on_image_selected)
 
+        self.window.grid_columnconfigure(1, weight=1)
+        self.window.grid_rowconfigure(2, weight=1)
+
         self.image = Label(background='light grey', width=30, height=20)
-        self.image.grid(column=1, row=2, pady=10, padx=(10, 20), sticky='w')
+        self.image.grid(column=1, row=2, pady=10, padx=(10, 20), sticky='nsew')
 
         self.barra_progresadora = Progressbar(orient="horizontal", length=150, mode="determinate")
         self.barra_progresadora.grid(column=1, row=3, columnspan=2, pady=10, padx=(30, 0), sticky='w')
@@ -87,14 +90,27 @@ class App:
         
         try: 
             image = Image.open(BytesIO(img_data)) 
-            image = image.resize((label_width, label_height), Image.LANCZOS) 
-            photo = ImageTk.PhotoImage(image) 
-            self.image.config(image=photo) 
-            self.image.image = photo 
+            
+            self.image.update_idletasks() 
+            label_width = self.image.winfo_width() 
+            label_height = self.image.winfo_height()
+            img_ratio = image.width / image.height 
+            label_ratio = label_width / label_height 
+            
+            if img_ratio > label_ratio: 
+                new_width = label_width 
+                new_height = int(label_width / img_ratio) 
+            else:
+                new_height = label_height 
+                new_width = int(label_height * img_ratio) 
+
+            image = image.resize((new_width, new_height), Image.LANCZOS)
+            photo = ImageTk.PhotoImage(image)
+            self.image.configure(image=photo)
+            self.image.image = photo
 
         except UnidentifiedImageError: 
             print(f'Error: La imagen en la URL {img_url} no se pudo identificar.')
-
 
 
     #  METHOD THAT SEARCHES THE URL  -------------------------------------------------------
