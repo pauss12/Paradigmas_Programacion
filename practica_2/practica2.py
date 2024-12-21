@@ -4,12 +4,13 @@ from rx.core import Observer
 from rx.subject import Subject
 from tkinter import Tk, Label, Button, Entry, Listbox
 from tkinter.ttk import Progressbar
-from PIL import Image, ImageTk
+from PIL import Image, ImageTk, UnidentifiedImageError
 import asyncio
 import time
 import aiohttp
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
+from io import BytesIO
 
 class App:
 
@@ -34,7 +35,7 @@ class App:
         
         self.window = Tk()
 
-        self.window.geometry('400x500')
+        self.window.geometry('500x600')
 
         self.window.resizable(False, False)
 
@@ -47,11 +48,12 @@ class App:
         self.Button = Button(text='Buscar', width=30, height=1, background='light grey', fg='black', command=self.search_url)
         self.Button.grid(column=1, row=1, pady=10, padx=(10, 20), sticky='w')
 
-        self.options = Listbox(width=20, height=10, background='light grey', fg='black')
-        self.options.grid(column=0, row=2, columnspan=2, pady=10, padx=20, sticky='w')
+        self.options = Listbox(width=30, height=20, background='light grey', fg='black')
+        self.options.grid(column=0, row=2, columnspan=1, pady=10, padx=20, sticky='w')
+        self.options.bind('<<ListboxSelect>>', self.on_image_selected)
 
         self.image = Label(background='light grey', width=30, height=20)
-        self.image.grid(column=1, row=2, pady=10, padx=(30, 20), sticky='w')
+        self.image.grid(column=1, row=2, pady=10, padx=(10, 20), sticky='w')
 
         self.barra_progresadora = Progressbar(orient="horizontal", length=150, mode="determinate")
         self.barra_progresadora.grid(column=1, row=3, columnspan=2, pady=10, padx=(30, 0), sticky='w')
@@ -70,7 +72,30 @@ class App:
         print("All the Images have been downloaded")
 
     def on_image_downloaded(self, image):
-        pass
+        img_url, img_data, img_alt = image
+        self.images.append((img_url, img_data, img_alt))
+        self.options.insert('end', img_alt)
+
+    # METHOD THAT DISPLAYS THE SELECTED IMAGE  ----------------------------------------------
+    def on_image_selected(self, event):
+
+        w = event.widget 
+        index = int(w.curselection()[0])
+
+        img_data = self.images[index]
+        img_url = img_data[0]
+        
+        try: 
+            image = Image.open(BytesIO(img_data)) 
+            image = image.resize((label_width, label_height), Image.LANCZOS) 
+            photo = ImageTk.PhotoImage(image) 
+            self.image.config(image=photo) 
+            self.image.image = photo 
+
+        except UnidentifiedImageError: 
+            print(f'Error: La imagen en la URL {img_url} no se pudo identificar.')
+
+
 
     #  METHOD THAT SEARCHES THE URL  -------------------------------------------------------
     def search_url(self):
@@ -84,6 +109,7 @@ class App:
 
     #  METHOD THAT GETS THE IMAGES  ---------------------------------------------------------
     async def get_images(self, url):
+        
         try:
             
             async with aiohttp.ClientSession() as session: 
@@ -92,6 +118,7 @@ class App:
                     soup = BeautifulSoup(html, 'html.parser') 
                     img_tags = soup.find_all('img') 
                     image_urls = [urljoin(url, img['src']) for img in img_tags if 'src' in img.attrs]
+                    image_alts = [img.get('alt', 'N/A') for img in img_tags]
                     
                     if not image_urls: 
                         self.on_error('Error: No se encontraron imágenes.') 
@@ -105,16 +132,14 @@ class App:
                     
                     progress = 0
                     i = 0
-                    for img_url in image_urls:
+                    for img_data, img_url, img_alt in zip(self.images, image_urls, image_alts):
                         i = image_urls.index(img_url) + 1 
-                        img_data = await self.download_image(session, img_url)
                         self.text['text'] = f'Numero de imagenes: {i}'
                         time.sleep(0.1)
                         if img_data: 
-                            self.image_subject.on_next((img_url, img_data)) 
+                            self.image_subject.on_next((img_url, img_data, img_alt)) 
                             progress += 1 
                             self.update_progress(progress) 
-                            self.barra_progresadora.update()
 
                     self.image_subject.on_completed()
         
@@ -134,5 +159,6 @@ class App:
     #  METHOD THAT MAKES UPDATES THE PROGRESS BAR  -----------------------------------------
     def update_progress(self, progress):
         self.barra_progresadora['value'] = progress
+        self.barra_progresadora.update()
 
 App()
