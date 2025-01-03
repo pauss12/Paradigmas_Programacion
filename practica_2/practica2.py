@@ -4,7 +4,8 @@ from rx.core import Observer
 from rx.subject import Subject
 from tkinter import Tk, Label, Button, Entry, Listbox
 from tkinter.ttk import Progressbar
-from Pillow import Image, ImageTk, UnidentifiedImageError
+#from Pillow import Image, ImageTk, UnidentifiedImageError
+from PIL import Image, ImageTk, UnidentifiedImageError
 import asyncio
 import time
 import aiohttp
@@ -35,7 +36,7 @@ class App:
         
         self.window = Tk()
 
-        self.window.geometry('500x600')
+        #self.window.geometry('500x600')
 
         self.window.resizable(False, False)
 
@@ -81,36 +82,49 @@ class App:
 
     # METHOD THAT DISPLAYS THE SELECTED IMAGE  ----------------------------------------------
     def on_image_selected(self, event):
-
-        w = event.widget 
+    
+        w = event.widget
+    
+        if not w.curselection():
+            print("No hay selección válida en el Listbox.")
+            return
+    
         index = int(w.curselection()[0])
-
-        img_data = self.images[index]
-        img_url = img_data[0]
-        
-        try: 
-            image = Image.open(BytesIO(img_data)) 
-            
-            self.image.update_idletasks() 
-            label_width = self.image.winfo_width() 
+        try:
+            img_data, img_url, img_alt = self.images[index]
+            if not img_data:
+                print(f"Advertencia: Los datos de la imagen en índice {index} son inválidos.")
+                return
+    
+            # Intenta abrir la imagen
+            image = Image.open(BytesIO(img_data))
+            print(f"Imagen cargada desde {img_url}")
+    
+            # Ajusta la imagen al tamaño del Label
+            label_width = self.image.winfo_width()
             label_height = self.image.winfo_height()
-            img_ratio = image.width / image.height 
-            label_ratio = label_width / label_height 
-            
-            if img_ratio > label_ratio: 
-                new_width = label_width 
-                new_height = int(label_width / img_ratio) 
+            img_ratio = image.width / image.height
+            label_ratio = label_width / label_height
+    
+            if img_ratio > label_ratio:
+                new_width = label_width
+                new_height = int(label_width / img_ratio)
             else:
-                new_height = label_height 
-                new_width = int(label_height * img_ratio) 
-
+                new_height = label_height
+                new_width = int(label_height * img_ratio)
+    
+            # Redimensiona y muestra la imagen
             image = image.resize((new_width, new_height), Image.LANCZOS)
             photo = ImageTk.PhotoImage(image)
             self.image.configure(image=photo)
             self.image.image = photo
-
-        except UnidentifiedImageError: 
-            print(f'Error: La imagen en la URL {img_url} no se pudo identificar.')
+    
+        except UnidentifiedImageError:
+            print(f"Error: No se pudo identificar la imagen en {img_url}.")
+        except IndexError:
+            print(f"Error: Índice {index} fuera de rango.")
+        except ValueError:
+            print(f"Error: Los datos de la imagen no tienen el formato correcto.")
 
 
     #  METHOD THAT SEARCHES THE URL  -------------------------------------------------------
@@ -125,9 +139,9 @@ class App:
 
     #  METHOD THAT GETS THE IMAGES  ---------------------------------------------------------
     async def get_images(self, url):
-        
+
         try:
-            
+
             async with aiohttp.ClientSession() as session: 
                 async with session.get(url) as response: 
                     html = await response.text() 
@@ -135,28 +149,30 @@ class App:
                     img_tags = soup.find_all('img') 
                     image_urls = [urljoin(url, img['src']) for img in img_tags if 'src' in img.attrs]
                     image_alts = [img.get('alt', 'N/A') for img in img_tags]
-                    
+
                     if not image_urls: 
                         self.on_error('Error: No se encontraron imágenes.') 
                         return 
-                    
-                    self.n_photos = len(image_urls) 
-                    self.barra_progresadora["maximum"] = self.n_photos 
-                    
-                    tasks = [self.download_image(session, img_url) for img_url in image_urls] 
-                    self.images = await asyncio.gather(*tasks) 
-                    
-                    progress = 0
-                    i = 0
-                    for img_data, img_url, img_alt in zip(self.images, image_urls, image_alts):
-                        i = image_urls.index(img_url) + 1 
-                        self.text['text'] = f'Numero de imagenes: {i}'
-                        time.sleep(0.1)
-                        if img_data: 
-                            self.image_subject.on_next((img_url, img_data, img_alt)) 
-                            progress += 1 
-                            self.update_progress(progress) 
 
+                    self.n_photos = len(image_urls)
+                    self.barra_progresadora["maximum"] = self.n_photos
+
+					tasks = [self.download_image(session, img_url) for img_url in image_urls]
+					self.images = await asyncio.gather(*tasks)
+
+					progress = 0
+					i = 0
+
+					for img_data, img_url, img_alt in zip(self.images, image_urls, image_alts):
+						i = image_urls.index(img_url) + 1
+						self.text['text'] = f'Numero de imagenes: {i}'
+						time.sleep(0.1)
+						if img_data:
+							self.image_subject.on_next((img_url, img_data, img_alt))
+							progress += 1
+							self.update_progress(progress)
+						else:
+							print(f"Advertencia: No se pudo descargar la imagen {img_url}")
                     self.image_subject.on_completed()
         
         except Exception as e:
