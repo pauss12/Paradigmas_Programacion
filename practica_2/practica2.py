@@ -1,10 +1,7 @@
-from rx import create, operators
-from requests import get
-from rx.core import Observer
 from rx.subject import Subject
 from tkinter import Tk, Label, Button, Entry, Listbox
 from tkinter.ttk import Progressbar
-from Pillow import Image, ImageTk, UnidentifiedImageError
+from PIL import Image, ImageTk, UnidentifiedImageError
 import asyncio
 import time
 import aiohttp
@@ -17,14 +14,6 @@ class App:
     #  INIT METHOD THAT CREATES THE WINDOW  ---------------------------------------------------------------------------------------
     def __init__(self):
 
-        self.image_subject = Subject() 
-        
-        self.image_subject.subscribe( 
-            on_next=self.on_image_downloaded, 
-            on_error=self.on_error, 
-            on_completed=self.on_completed 
-        ) 
-        
         self.n_photos = 0 
         self.images = []
 
@@ -61,9 +50,11 @@ class App:
         self.barra_progresadora = Progressbar(orient="horizontal", length=150, mode="determinate")
         self.barra_progresadora.grid(column=1, row=3, columnspan=2, pady=10, padx=(30, 0), sticky='w')
 
-        #texto que diga el numero de imagenes con su valor que depende de la busqueda de la url
         self.text = Label(text=f'Numero de imagenes: {self.n_photos}', font=('Arial', 11))
         self.text.grid(column=1, row=4, pady=10, padx=(20, 0), sticky='w')
+        
+        self.total_images = Label(text=f'Se encontraron {self.n_photos} imágenes: ', font=('Arial', 11))
+        self.total_images.grid(column=1, row=5, pady=10, padx=(20, 0), sticky='w')
 
         self.window.mainloop()
 
@@ -74,44 +65,57 @@ class App:
     def on_completed(self):
         print("All the Images have been downloaded")
 
-    def on_image_downloaded(self, image):
+    def on_image_downloaded(self, image, subject):
         img_url, img_data, img_alt = image
         self.images.append((img_url, img_data, img_alt))
         self.options.insert('end', img_alt)
 
     # METHOD THAT DISPLAYS THE SELECTED IMAGE  ----------------------------------------------
+        
     def on_image_selected(self, event):
+        # Obtener el índice de la imagen seleccionada
+        #w = event.widget
+        selection = self.options.curselection()
+        
+        # Si no hay ninguna selección
+        if not selection:
+            return
 
-        w = event.widget 
-        index = int(w.curselection()[0])
-
+        index = int(selection[0])
         img_data = self.images[index]
         img_url = img_data[0]
         
-        try: 
-            image = Image.open(BytesIO(img_data)) 
-            
-            self.image.update_idletasks() 
-            label_width = self.image.winfo_width() 
-            label_height = self.image.winfo_height()
-            img_ratio = image.width / image.height 
-            label_ratio = label_width / label_height 
-            
-            if img_ratio > label_ratio: 
-                new_width = label_width 
-                new_height = int(label_width / img_ratio) 
-            else:
-                new_height = label_height 
-                new_width = int(label_height * img_ratio) 
+        try:
+            # Cargar la imagen desde los datos binarios
+            image = Image.open(BytesIO(img_data))
 
-            image = image.resize((new_width, new_height), Image.LANCZOS)
-            photo = ImageTk.PhotoImage(image)
+            # Redimensionar la imagen manteniendo la proporción
+            resized_image = self.resize_image(image)
+
+            # Mostrar la imagen en el label
+            photo = ImageTk.PhotoImage(resized_image)
             self.image.configure(image=photo)
             self.image.image = photo
 
-        except UnidentifiedImageError: 
+        except UnidentifiedImageError:
             print(f'Error: La imagen en la URL {img_url} no se pudo identificar.')
 
+    def resize_image(self, image):
+        """ Redimensiona la imagen manteniendo su relación de aspecto para ajustarse a la etiqueta del label """
+        label_width = self.image.winfo_width()
+        label_height = self.image.winfo_height()
+        
+        img_ratio = image.width / image.height
+        label_ratio = label_width / label_height
+        
+        if img_ratio > label_ratio:
+            new_width = label_width
+            new_height = int(label_width / img_ratio)
+        else:
+            new_height = label_height
+            new_width = int(label_height * img_ratio)
+        
+        return image.resize((new_width, new_height), Image.LANCZOS)
 
     #  METHOD THAT SEARCHES THE URL  -------------------------------------------------------
     def search_url(self):
@@ -120,7 +124,25 @@ class App:
 
         if not url:
             self.on_error('Error: Debe ingresar una URL.')
+            return
+
+        #Cuando se ingresa una nueva URL url se limpia la lista de imagenes y se reinicia la barra de progreso para la nueva busqueda
+        self.images = []
+        self.options.delete(0, 'end')
+        self.n_photos = 0
+        self.barra_progresadora['value'] = 0
+        self.text['text'] = f'Numero de imagenes: {self.n_photos}'
+
+        self.image.configure(image=None)
+        self.image.image = None
         
+        self.image_subject = Subject() 
+        self.image_subject.subscribe( 
+            on_next=lambda image: self.on_image_downloaded(image, self.image_subject),
+            on_error=self.on_error, 
+            on_completed=self.on_completed 
+        )
+
         asyncio.run(self.get_images(url))
 
     #  METHOD THAT GETS THE IMAGES  ---------------------------------------------------------
@@ -151,12 +173,13 @@ class App:
                     for img_data, img_url, img_alt in zip(self.images, image_urls, image_alts):
                         i = image_urls.index(img_url) + 1 
                         self.text['text'] = f'Numero de imagenes: {i}'
-                        time.sleep(0.1)
+                        await asyncio.sleep(0.1)
                         if img_data: 
                             self.image_subject.on_next((img_url, img_data, img_alt)) 
                             progress += 1 
                             self.update_progress(progress) 
 
+                    self.total_images['text'] = f'Se encontraron {self.n_photos} imágenes '
                     self.image_subject.on_completed()
         
         except Exception as e:
