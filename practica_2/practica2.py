@@ -24,8 +24,6 @@ class App:
         
         self.window = Tk()
 
-        self.window.geometry('500x600')
-
         self.window.resizable(False, False)
 
         self.label = Label(text='URL a procesar', font=('Arial', 11))
@@ -73,8 +71,8 @@ class App:
     # METHOD THAT DISPLAYS THE SELECTED IMAGE  ----------------------------------------------
         
     def on_image_selected(self, event):
+        
         # Obtener el índice de la imagen seleccionada
-        #w = event.widget
         selection = self.options.curselection()
         
         # Si no hay ninguna selección
@@ -99,6 +97,7 @@ class App:
 
         except UnidentifiedImageError:
             print(f'Error: La imagen en la URL {img_url} no se pudo identificar.')
+
 
     def resize_image(self, image):
         """ Redimensiona la imagen manteniendo su relación de aspecto para ajustarse a la etiqueta del label """
@@ -147,9 +146,9 @@ class App:
 
     #  METHOD THAT GETS THE IMAGES  ---------------------------------------------------------
     async def get_images(self, url):
-        
+
         try:
-            
+
             async with aiohttp.ClientSession() as session: 
                 async with session.get(url) as response: 
                     html = await response.text() 
@@ -157,7 +156,7 @@ class App:
                     img_tags = soup.find_all('img') 
                     image_urls = [urljoin(url, img['src']) for img in img_tags if 'src' in img.attrs]
                     image_alts = [img.get('alt', 'N/A') for img in img_tags]
-                    
+
                     if not image_urls: 
                         self.on_error('Error: No se encontraron imágenes.') 
                         return 
