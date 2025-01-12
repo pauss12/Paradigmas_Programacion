@@ -1,29 +1,22 @@
-from rx.subject import Subject
+import asyncio
+import aiohttp
 from tkinter import Tk, Label, Button, Entry, Listbox
 from tkinter.ttk import Progressbar
 from PIL import Image, ImageTk, UnidentifiedImageError
-import asyncio
-import time
-import aiohttp
+from io import BytesIO
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
-from io import BytesIO
 
 class App:
 
-    #  INIT METHOD THAT CREATES THE WINDOW  ---------------------------------------------------------------------------------------
     def __init__(self):
-
-        self.n_photos = 0 
+        self.n_photos = 0
         self.images = []
-
+        self.loop = asyncio.get_event_loop() 
         self.create_window()
 
-    #  METHOD THAT CREATES THE WINDOW  ----------------------------------------------------
     def create_window(self):
-        
         self.window = Tk()
-
         self.window.resizable(False, False)
 
         self.label = Label(text='URL a procesar', font=('Arial', 11))
@@ -50,47 +43,63 @@ class App:
 
         self.text = Label(text=f'Numero de imagenes: {self.n_photos}', font=('Arial', 11))
         self.text.grid(column=1, row=4, pady=10, padx=(20, 0), sticky='w')
-        
+
         self.total_images = Label(text=f'Se encontraron {self.n_photos} imágenes: ', font=('Arial', 11))
         self.total_images.grid(column=1, row=5, pady=10, padx=(20, 0), sticky='w')
 
+        self.window.protocol("WM_DELETE_WINDOW", self.on_close)
+
+        self.window.after(100, self.run_asyncio)
         self.window.mainloop()
 
-    # METHOD SUBSCRIBED -------------------------------------------------------------------
+    def run_asyncio(self):
+        if not self.loop.is_running():
+            self.loop.run_until_complete(self.async_task())
+
+    async def async_task(self):
+        await asyncio.sleep(0) 
+        self.window.after(100, self.run_asyncio) 
+
     def on_error(self, error):
         print(f'Error: {error}')
 
-    def on_completed(self):
-        print("All the Images have been downloaded")
-
-    def on_image_downloaded(self, image, subject):
+    def on_image_downloaded(self, image):
         img_url, img_data, img_alt = image
         self.images.append((img_url, img_data, img_alt))
         self.options.insert('end', img_alt)
 
-    # METHOD THAT DISPLAYS THE SELECTED IMAGE  ----------------------------------------------
-        
+    def search_url(self):
+        url = self.entry.get().strip()
+
+        if not url:
+            self.on_error('Error: Debe ingresar una URL.')
+            return
+
+        self.images = []
+        self.options.delete(0, 'end')
+        self.n_photos = 0
+        self.barra_progresadora['value'] = 0
+        self.text['text'] = f'Numero de imagenes: {self.n_photos}'
+        self.image.configure(image=None)
+        self.image.image = None
+
+        asyncio.ensure_future(self.get_images(url))
+
     def on_image_selected(self, event):
         
-        # Obtener el índice de la imagen seleccionada
         selection = self.options.curselection()
         
-        # Si no hay ninguna selección
         if not selection:
             return
 
         index = int(selection[0])
-        img_data = self.images[index]
-        img_url = img_data[0]
+        img_url, img_data, img_alt = self.images[index]
         
         try:
-            # Cargar la imagen desde los datos binarios
             image = Image.open(BytesIO(img_data))
 
-            # Redimensionar la imagen manteniendo la proporción
             resized_image = self.resize_image(image)
 
-            # Mostrar la imagen en el label
             photo = ImageTk.PhotoImage(resized_image)
             self.image.configure(image=photo)
             self.image.image = photo
@@ -98,9 +107,7 @@ class App:
         except UnidentifiedImageError:
             print(f'Error: La imagen en la URL {img_url} no se pudo identificar.')
 
-
     def resize_image(self, image):
-        """ Redimensiona la imagen manteniendo su relación de aspecto para ajustarse a la etiqueta del label """
         label_width = self.image.winfo_width()
         label_height = self.image.winfo_height()
         
@@ -116,75 +123,39 @@ class App:
         
         return image.resize((new_width, new_height), Image.LANCZOS)
 
-    #  METHOD THAT SEARCHES THE URL  -------------------------------------------------------
-    def search_url(self):
-
-        url = self.entry.get().strip()
-
-        if not url:
-            self.on_error('Error: Debe ingresar una URL.')
-            return
-
-        #Cuando se ingresa una nueva URL url se limpia la lista de imagenes y se reinicia la barra de progreso para la nueva busqueda
-        self.images = []
-        self.options.delete(0, 'end')
-        self.n_photos = 0
-        self.barra_progresadora['value'] = 0
-        self.text['text'] = f'Numero de imagenes: {self.n_photos}'
-
-        self.image.configure(image=None)
-        self.image.image = None
-        
-        self.image_subject = Subject() 
-        self.image_subject.subscribe( 
-            on_next=lambda image: self.on_image_downloaded(image, self.image_subject),
-            on_error=self.on_error, 
-            on_completed=self.on_completed 
-        )
-
-        asyncio.run(self.get_images(url))
-
-    #  METHOD THAT GETS THE IMAGES  ---------------------------------------------------------
     async def get_images(self, url):
 
         try:
-
-            async with aiohttp.ClientSession() as session: 
-                async with session.get(url) as response: 
-                    html = await response.text() 
-                    soup = BeautifulSoup(html, 'html.parser') 
-                    img_tags = soup.find_all('img') 
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as response:
+                    html = await response.text()
+                    soup = BeautifulSoup(html, 'html.parser')
+                    img_tags = soup.find_all('img')
                     image_urls = [urljoin(url, img['src']) for img in img_tags if 'src' in img.attrs]
                     image_alts = [img.get('alt', 'N/A') for img in img_tags]
 
-                    if not image_urls: 
-                        self.on_error('Error: No se encontraron imágenes.') 
-                        return 
-                    
-                    self.n_photos = len(image_urls) 
-                    self.barra_progresadora["maximum"] = self.n_photos 
-                    
-                    tasks = [self.download_image(session, img_url) for img_url in image_urls] 
-                    self.images = await asyncio.gather(*tasks) 
-                    
+                    if not image_urls:
+                        self.on_error('Error: No se encontraron imágenes.')
+                        return
+
+                    self.n_photos = len(image_urls)
+                    self.barra_progresadora["maximum"] = self.n_photos
+
                     progress = 0
-                    i = 0
-                    for img_data, img_url, img_alt in zip(self.images, image_urls, image_alts):
-                        i = image_urls.index(img_url) + 1 
-                        self.text['text'] = f'Numero de imagenes: {i}'
-                        await asyncio.sleep(0.1)
-                        if img_data: 
-                            self.image_subject.on_next((img_url, img_data, img_alt)) 
-                            progress += 1 
-                            self.update_progress(progress) 
+                    for img_url, img_alt in zip(image_urls, image_alts):
+                        img_data = await self.download_image(session, img_url)
+                        if img_data:
+                            self.on_image_downloaded((img_url, img_data, img_alt))
+                            progress += 1
+                            self.update_progress(progress)
+                            self.text['text'] = f'Numero de imagenes: {progress}'
+                        await asyncio.sleep(0.1) 
 
                     self.total_images['text'] = f'Se encontraron {self.n_photos} imágenes '
-                    self.image_subject.on_completed()
-        
+
         except Exception as e:
             self.on_error(f'Error: {e}')
 
-    #  METHOD THAT DOWNLOADS THE IMAGES  ---------------------------------------------------
     async def download_image(self, session, url):
         try:
             async with session.get(url) as response:
@@ -194,9 +165,11 @@ class App:
             self.on_error(f'{e}')
             return None
 
-    #  METHOD THAT MAKES UPDATES THE PROGRESS BAR  -----------------------------------------
     def update_progress(self, progress):
         self.barra_progresadora['value'] = progress
         self.barra_progresadora.update()
+
+    def on_close(self):
+        self.window.quit()
 
 App()
